@@ -1,5 +1,7 @@
 package com.jaumard.smsautofill;
 
+import static com.jaumard.smsautofill.AppSignatureHelper.TAG;
+
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -11,6 +13,9 @@ import android.content.IntentSender;
 import android.os.Build;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.credentials.Credential;
@@ -28,8 +33,6 @@ import java.lang.ref.WeakReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import androidx.annotation.NonNull;
-
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -42,6 +45,8 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
+
+import android.provider.Telephony;
 
 /**
  * SmsAutoFillPlugin
@@ -101,9 +106,12 @@ public class SmsAutoFillPlugin implements FlutterPlugin, ActivityAware, MethodCa
                 requestHint();
                 break;
             case "listenForCode":
+                Log.d(TAG, "sms_autoFill listenforcode: ");
                 final String smsCodeRegexPattern = call.argument("smsCodeRegexPattern");
                 SmsRetrieverClient client = SmsRetriever.getClient(activity);
                 Task<Void> task = client.startSmsRetriever();
+                broadcastReceiver = new SmsBroadcastReceiver(new WeakReference<>(SmsAutoFillPlugin.this),
+                        smsCodeRegexPattern);
 
                 task.addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
@@ -337,16 +345,18 @@ public class SmsAutoFillPlugin implements FlutterPlugin, ActivityAware, MethodCa
                         if (status.getStatusCode() == CommonStatusCodes.SUCCESS) {
                             // Get SMS message contents
                             String message = (String) extras.get(SmsRetriever.EXTRA_SMS_MESSAGE);
-                            Pattern pattern = Pattern.compile(smsCodeRegexPattern);
-                            if (message != null) {
-                                Matcher matcher = pattern.matcher(message);
-
-                                if (matcher.find()) {
-                                    plugin.get().setCode(matcher.group(0));
-                                } else {
-                                    plugin.get().setCode(message);
-                                }
-                            }
+                            Log.d(TAG, "sms_autoFill onReceive: "+message);
+                            plugin.get().setCode(message);
+//                            Pattern pattern = Pattern.compile(smsCodeRegexPattern);
+//                            if (message != null) {
+//                                Matcher matcher = pattern.matcher(message);
+//
+//                                if (matcher.find()) {
+//                                    plugin.get().setCode(matcher.group(0));
+//                                } else {
+//                                    plugin.get().setCode(message);
+//                                }
+//                            }
                         }
                     }
                 }
